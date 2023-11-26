@@ -1,5 +1,6 @@
 certifi==2021.5.30
-dataclasses==0.8
+# Dataclasses now supported as of >=Python3.7
+# dataclasses==0.8
 imageio==2.15.0
 numpy==1.19.5
 opencv-python==4.7.0.72

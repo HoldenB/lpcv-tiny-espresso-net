@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from resnet import Resnet18
+from models.resnet import Resnet18
 
 
 UP_KWARGS = {"mode": "bilinear", "align_corners": True}

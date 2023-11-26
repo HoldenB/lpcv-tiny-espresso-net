@@ -9,40 +9,37 @@ from imageio.core.util import Array
 from imageio import imread
 from cv2.mat_wrapper import Mat
 
-from accuracy import AccuracyTracker
-from utils import get_eval_args
+from utils.accuracy import AccuracyTracker
+from utils.utils import SIZE, get_eval_args
 
 
-SIZE: list[int] = [512, 512]
-
-
-def loadGroundTruthImage(imagePath: str) -> ndarray:
-    image: Array = imread(uri=imagePath).astype(np.uint8)
+def load_ground_truth_image(image_path: str) -> ndarray:
+    image: Array = imread(uri=image_path).astype(np.uint8)
 
     if len(image.shape) == 3:
         image = image[:, :, 0]
 
-    resizedImage: Mat = cv2.resize(
+    resized_image: Mat = cv2.resize(
         image, tuple(SIZE),
         interpolation=cv2.INTER_AREA
     )
-    resizedImage: Mat = cv2.resize(
-        resizedImage, tuple(SIZE),
+    resized_image: Mat = cv2.resize(
+        resized_image, tuple(SIZE),
         interpolation=cv2.INTER_NEAREST
     )
 
-    outputImage: ndarray = resizedImage[np.newaxis, :, :]
+    output_image: ndarray = resized_image[np.newaxis, :, :]
 
-    return outputImage
+    return output_image
 
 
 def get_score(image, groundTruth):
-    accuracyTracker: AccuracyTracker = AccuracyTracker(n_classes=14)
-    groundTruthArray: ndarray = loadGroundTruthImage(imagePath=groundTruth)
-    outArray: ndarray = loadGroundTruthImage(imagePath=image)
-    accuracyTracker.update(groundTruthArray, outArray)
-    accuracyTracker.get_scores()
-    return accuracyTracker.mean_dice
+    acc_tracker: AccuracyTracker = AccuracyTracker(n_classes=14)
+    gt_array: ndarray = load_ground_truth_image(imagePath=groundTruth)
+    out_array: ndarray = load_ground_truth_image(imagePath=image)
+    acc_tracker.update(gt_array, out_array)
+    acc_tracker.get_scores()
+    return acc_tracker.mean_dice
 
 
 def main(args: Namespace):
