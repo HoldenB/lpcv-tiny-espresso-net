@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils.resnet import Resnet18
 
-up_kwargs = {"mode": "bilinear", "align_corners": True}
+from resnet import Resnet18
+
+
+UP_KWARGS = {"mode": "bilinear", "align_corners": True}
 
 
 class BatchNorm2d(nn.BatchNorm2d):
@@ -25,7 +27,7 @@ class FANet(nn.Module):
         super(FANet, self).__init__()
 
         self.norm_layer = norm_layer
-        self._up_kwargs = up_kwargs
+        self._up_kwargs = UP_KWARGS
         self.nclass = nclass
         self.expansion = 1
         self.resnet = Resnet18(norm_layer=norm_layer)
@@ -43,9 +45,7 @@ class FANet(nn.Module):
             64 * self.expansion, 256, 128, norm_layer=norm_layer
         )
 
-        self.clslayer_32 = FPNOutput(128, 64, nclass, norm_layer=norm_layer)
-        self.clslayer_16 = FPNOutput(128, 64, nclass, norm_layer=norm_layer)
-        self.clslayer_8 = FPNOutput(256, 256, nclass, norm_layer=norm_layer)
+        self.cls_layer_8 = FPNOutput(256, 256, nclass, norm_layer=norm_layer)
 
     def forward(
         self,
@@ -55,14 +55,14 @@ class FANet(nn.Module):
 
         feat4, feat8, feat16, feat32 = self.resnet(x)
 
-        upfeat_32, smfeat_32 = self.ffm_32(feat32, None, True, True)
-        upfeat_16, smfeat_16 = self.ffm_16(feat16, upfeat_32, True, True)
-        upfeat_8 = self.ffm_8(feat8, upfeat_16, True, False)
-        smfeat_4 = self.ffm_4(feat4, upfeat_8, False, True)
+        up_feat_32, sm_feat_32 = self.ffm_32(feat32, None, True, True)
+        up_feat_16, sm_feat_16 = self.ffm_16(feat16, up_feat_32, True, True)
+        up_feat_8 = self.ffm_8(feat8, up_feat_16, True, False)
+        sm_feat_4 = self.ffm_4(feat4, up_feat_8, False, True)
 
-        x = self._upsample_cat(smfeat_16, smfeat_4)
+        x = self._upsample_cat(sm_feat_16, sm_feat_4)
 
-        x = self.clslayer_8(x)
+        x = self.cls_layer_8(x)
 
         return x
 
@@ -112,7 +112,12 @@ class FPNOutput(nn.Module):
         self.conv = ConvBNReLU(
             in_chan, mid_chan, ks=3, stride=1, padding=1, norm_layer=norm_layer
         )
-        self.conv_out = nn.Conv2d(mid_chan, n_classes, kernel_size=1, bias=False)
+        self.conv_out = nn.Conv2d(
+            mid_chan,
+            n_classes,
+            kernel_size=1,
+            bias=False
+        )
 
     def forward(self, x):
         x = self.conv(x)
@@ -126,7 +131,7 @@ class LAFeatureFusionModule(nn.Module):
     ):
         super(LAFeatureFusionModule, self).__init__()
         self.norm_layer = norm_layer
-        self._up_kwargs = up_kwargs
+        self._up_kwargs = UP_KWARGS
         mid_chn = int(in_chan / 2)
         self.w_qs = ConvBNReLU(
             in_chan,
@@ -152,7 +157,7 @@ class LAFeatureFusionModule(nn.Module):
             in_chan, in_chan, ks=1, stride=1, padding=0, norm_layer=norm_layer
         )
 
-        self.latlayer3 = ConvBNReLU(
+        self.lat_layer3 = ConvBNReLU(
             in_chan, in_chan, ks=1, stride=1, padding=0, norm_layer=norm_layer
         )
 
@@ -183,7 +188,7 @@ class LAFeatureFusionModule(nn.Module):
         y = y.permute(0, 2, 1).contiguous()
 
         y = y.view(N, C, H, W)
-        W_y = self.latlayer3(y)
+        W_y = self.lat_layer3(y)
         p_feat = W_y + feat
 
         if up_flag and smf_flag:

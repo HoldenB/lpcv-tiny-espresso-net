@@ -3,21 +3,31 @@
 # Add a variable for the timeout in seconds (15 minutes = 900 seconds)
 TIMEOUT=900
 
+# Input is the solution.pyz file i.e ./run_eval.sh solution.pyz
 solution=$1
 filename=$(basename $solution)
 submissionName=${filename%.pyz}
 
-path="/home/lpcvcnode1/lpcvc2023/evaluation"
-mkdir $path/evalDirectory
+# TODO we may need to change this path
+# For now we can run this script from the root proj dir
+path="."
+
+mkdir $path/eval
 if [ ! -d "$path/output" ]; then
   mkdir "$path/output"
 fi
-eval=$path/evalDirectory
+eval=$path/eval
 
-scoreResults="$path/main.py"
-testImagesDirectory="$path/LPCVC_Test_Private/LPCVC_Test_Private/IMG"
-testGroundTruthImagesDirectory="$path/LPCVC_Test_Private/LPCVC_Test_Private/GT"
+# Name of the eval python script
+scoreResults="$path/run_eval.py"
+
+# TODO download IMG and make data dir
+testImagesDirectory="$path/data/IMG"
+# TODO download GT and make data dir
+testGroundTruthImagesDirectory="$path/data/GT"
+
 testImages=$(ls $testImagesDirectory)
+
 summed_dice=0
 count=600
 start_time=$(date +%s)
@@ -26,12 +36,14 @@ exit_code=$?
 end_time=$(date +%s)
 runtime=$((end_time-start_time))
 echo $runtime
+
 # Check if the command ran for longer than the timeout
 if [ $runtime -ge $TIMEOUT ]; then
   echo "Timeout reached."
   exit_code=124
 fi
 
+# Run the clear GPU script after evaluation
 python3.6 clear_gpu.py
 
 if [ $exit_code -eq 124 ]; then
@@ -84,4 +96,5 @@ json='{"mean_dice":"'${mean_dice}'","mean_speed":"'${mean_speed}'","score":"'${s
 echo "$json" > $path/output/$submissionName.json
 echo "$submissionName"
 rm -rf $eval
+
 exit $exit_code
