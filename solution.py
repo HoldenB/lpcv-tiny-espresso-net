@@ -1,4 +1,5 @@
 import os
+import gc
 import pkg_resources
 import cv2
 import torch
@@ -6,12 +7,19 @@ import numpy as np
 import torch.nn.functional as F
 from argparse import Namespace
 from PIL import Image
+# from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from imageio import imread
 from cv2.mat_wrapper import Mat
 
 from utils.utils import (
-    DEVICE, SIZE, MEAN, STANDARD_DEVIATION, MODEL_FILE, get_solution_args
+    DEVICE,
+    SIZE,
+    MEAN,
+    STANDARD_DEVIATION,
+    MODEL_FILE,
+    # load_segmentation_dataset,
+    get_solution_args
 )
 from models.fanet import FANet
 
@@ -45,34 +53,48 @@ def load_image_to_tensor(image_path: str) -> torch.Tensor:
 
 
 def main(args: Namespace) -> None:
-    image_files: list[str] = os.listdir(args.input)
 
-    model = load_model()
-    model.eval()
-
-    start = torch.cuda.Event(enable_timing=True)
-    end = torch.cuda.Event(enable_timing=True)
-
+    # TODO This makes no sense really, not sure if this is needed
     # Warm Up
-    for image_file in image_files[:15]:
-        input_image_path: str = os.path.join(args.input, image_file)
-        image_tensor: torch.Tensor = \
-            load_image_to_tensor(image_path=input_image_path)
-        image_tensor = image_tensor.to(DEVICE)
-        out_tensor: torch.Tensor = model(image_tensor)
+    # for image_file in image_files[:15]:
+    #     input_image_path: str = os.path.join(args.input, image_file)
+    #     image_tensor: torch.Tensor = \
+    #         load_image_to_tensor(image_path=input_image_path)
+    #     image_tensor = image_tensor.to(DEVICE)
+    #     out_tensor: torch.Tensor = model(image_tensor)
 
     time = 0
     with torch.no_grad():
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        image_files: list[str] = os.listdir(args.input)
+
+        model = load_model()
+        model.eval()
+
+        # TODO use the dataloader rather than loading each image to a tensor
+        # dataset: DataLoader = \
+        #     load_segmentation_dataset(args.input, args.output)
+
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+
         for image_file in image_files:
             input_image_path: str = os.path.join(args.input, image_file)
             output_image_path: str = os.path.join(args.output, image_file)
             image_tensor: torch.Tensor = \
                 load_image_to_tensor(image_path=input_image_path)
             image_tensor = image_tensor.to(DEVICE)
+
+            # Record the model eval time
+            torch.cuda.synchronize()
             start.record()
             out_tensor: torch.Tensor = model(image_tensor)
             end.record()
-            torch.cuda.synchronize()
 
             time += start.elapsed_time(end)
 
@@ -93,6 +115,7 @@ def main(args: Namespace) -> None:
     del image_tensor
     del out_tensor
 
+    gc.collect()
     torch.cuda.empty_cache()
 
 

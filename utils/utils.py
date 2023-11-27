@@ -3,7 +3,7 @@ import torch
 from typing import Tuple
 from pathlib import Path
 from argparse import ArgumentParser, Namespace
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import transforms
 from imageio import imread
 
@@ -11,7 +11,7 @@ from imageio import imread
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # TODO make sure this is the path to our custom model pkl
-MODEL_FILE = "model.pkl"
+MODEL_FILE = "test_model.pkl"
 
 SIZE: list[int] = [512, 512]
 
@@ -52,6 +52,21 @@ class SegmentationDataset(Dataset):
         )
 
 
+def load_segmentation_dataset(image_root_dir, image_output_dir) -> DataLoader:
+    return DataLoader(
+        SegmentationDataset(
+            root_dir=image_root_dir,
+            out_dir=image_output_dir
+        ),
+        persistent_workers=True,
+        batch_size=4,
+        shuffle=False,
+        num_workers=2,
+        prefetch_factor=2,
+        pin_memory=True
+    )
+
+
 def get_parser() -> ArgumentParser:
     programName: str = "LPCV 2023 Tiny Espresso Net"
     authors: list[str] = ["Holden Babineaux, Joseph Fontenot"]
@@ -70,23 +85,6 @@ def get_eval_args() -> Namespace:
     parser: ArgumentParser = get_parser()
     parser.add_argument(
         "-i",
-        "--input",
-        required=True,
-        help="Filepath to an image to create a segmentation map of",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        required=True,
-        help="Filepath to the corresponding output segmentation map",
-    )
-    return parser.parse_args()
-
-
-def get_solution_args() -> Namespace:
-    parser: ArgumentParser = get_parser()
-    parser.add_argument(
-        "-i",
         "--image_dir",
         required=True,
         help="Directory containing the generated segmentation maps",
@@ -96,6 +94,23 @@ def get_solution_args() -> Namespace:
         "--gt",
         required=True,
         help="Directory containing the ground truth images to compare to",
+    )
+    return parser.parse_args()
+
+
+def get_solution_args() -> Namespace:
+    parser: ArgumentParser = get_parser()
+    parser.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        help="Filepath to an image to create a segmentation map of",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        help="Filepath to the corresponding output segmentation map",
     )
     return parser.parse_args()
 

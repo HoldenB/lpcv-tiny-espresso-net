@@ -27,7 +27,6 @@ class FANet(nn.Module):
         super(FANet, self).__init__()
 
         self.norm_layer = norm_layer
-        self._up_kwargs = UP_KWARGS
         self.nclass = nclass
         self.expansion = 1
         self.resnet = Resnet18(norm_layer=norm_layer)
@@ -51,11 +50,9 @@ class FANet(nn.Module):
         self,
         x,
     ):
-        _, _, h, w = x.size()
-
         feat4, feat8, feat16, feat32 = self.resnet(x)
 
-        up_feat_32, sm_feat_32 = self.ffm_32(feat32, None, True, True)
+        up_feat_32, _ = self.ffm_32(feat32, None, True, True)
         up_feat_16, sm_feat_16 = self.ffm_16(feat16, up_feat_32, True, True)
         up_feat_8 = self.ffm_8(feat8, up_feat_16, True, False)
         sm_feat_4 = self.ffm_4(feat4, up_feat_8, False, True)
@@ -68,7 +65,7 @@ class FANet(nn.Module):
 
     def _upsample_cat(self, x1, x2):
         _, _, H, W = x2.size()
-        x1 = F.interpolate(x1, (H, W), **self._up_kwargs)
+        x1 = F.interpolate(x1, (H, W), **UP_KWARGS)
         x = torch.cat([x1, x2], dim=1)
         return x
 
@@ -131,7 +128,6 @@ class LAFeatureFusionModule(nn.Module):
     ):
         super(LAFeatureFusionModule, self).__init__()
         self.norm_layer = norm_layer
-        self._up_kwargs = UP_KWARGS
         mid_chn = int(in_chan / 2)
         self.w_qs = ConvBNReLU(
             in_chan,
@@ -212,4 +208,4 @@ class LAFeatureFusionModule(nn.Module):
 
     def _upsample_add(self, x, y):
         _, _, H, W = y.size()
-        return F.interpolate(x, (H, W), **self._up_kwargs) + y
+        return F.interpolate(x, (H, W), **UP_KWARGS) + y
