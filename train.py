@@ -1,6 +1,6 @@
 from argparse import Namespace
 
-from utils.utils import get_training_args
+from solution.utils.utils import get_training_args
 
 
 def train() -> None:

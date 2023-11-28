@@ -9,8 +9,8 @@ from imageio.core.util import Array
 from imageio import imread
 from cv2.mat_wrapper import Mat
 
-from utils.accuracy import AccuracyTracker
-from utils.utils import SIZE, get_eval_args
+from accuracy import AccuracyTracker
+from solution.utils.utils import SIZE, get_eval_args
 
 
 def load_ground_truth_image(image_path: str) -> ndarray:
